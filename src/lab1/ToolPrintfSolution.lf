@@ -1,0 +1,5 @@
+/*
+    Print statements incororperated in the modifed blink code with two timers.
+*/
+
+target c {}

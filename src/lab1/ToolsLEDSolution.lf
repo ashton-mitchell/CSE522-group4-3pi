@@ -1,0 +1,5 @@
+/*
+    The final file that signals the reusable reactor
+*/
+
+target c {}
