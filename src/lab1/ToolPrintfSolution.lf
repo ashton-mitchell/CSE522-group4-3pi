@@ -1,5 +1,10 @@
 /*
     Print statements incororperated in the modifed blink code with two timers.
 */
-
-target c {}
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true,
+}
