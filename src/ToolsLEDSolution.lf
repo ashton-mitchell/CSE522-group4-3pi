@@ -1,5 +1,6 @@
 /*
     The final file that signals the reusable reactor
+*/
 target C {
   platform: {
     name: "rp2040",
@@ -19,9 +20,8 @@ main reactor {
 
   reaction(t1) {=
     LED.set -> true
-    =}
+  =}
   reaction(t2) {=
     LED.set-> false
-    =}
+  =}
 }
-    */
