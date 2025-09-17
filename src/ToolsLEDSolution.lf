@@ -13,15 +13,21 @@ import LED from "lib/LED.lf"
 
 main reactor {
 
-  LED = new LED()
+  led = new LED()
+
+  state on: bool = false
 
   timer t1(0, 500 ms)
   timer t2(250 ms,500 ms)
 
-  reaction(t1) {=
-    LED.set -> true
+
+
+  reaction(t1) -> led.set {=
+    self->on = !self->on
+    lf_set(led.set, self->on)
   =}
   reaction(t2) {=
-    LED.set-> false
+     self->on = !self->on
+    lf_set(led.set, self->on) 
   =}
 }
