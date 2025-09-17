@@ -20,13 +20,11 @@ main reactor {
   timer t1(0, 500 ms)
   timer t2(250 ms,500 ms)
 
-
-
   reaction(t1) -> led.set {=
     self->on = !self->on
     lf_set(led.set, self->on)
   =}
-  reaction(t2) {=
+  reaction(t2) -> led.set {=
      self->on = !self->on
     lf_set(led.set, self->on) 
   =}
