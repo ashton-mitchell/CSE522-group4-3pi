@@ -6,5 +6,11 @@ target C {
     name: "rp2040",
     board: "pololu_3pi_2040_robot"
   },
-  single-threaded: true,
+  single-threaded: true
 }
+
+preamble {=
+  #include <stdio.h>
+  #include <pico/stdlib.h>
+  #include <hardware/gpio.h>
+=}

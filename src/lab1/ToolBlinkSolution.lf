@@ -8,3 +8,27 @@ target C {
   },
   single-threaded: true,
 }
+
+preamble {=
+  #include <stdio.h>
+  #include <pico/stdlib.h>
+  #include <hardware/gpio.h>
+=}
+
+main reactor {
+  timer t1(0, 500 ms)
+  timer t2(250 ms,500 ms)
+
+  reaction(startup) {=
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+  =}
+
+  reaction(t1) {=
+    gpio_put(PICO_DEFAULT_LED_PIN, 1);
+  =}
+
+  reaction(t2) {=
+    gpio_put(PICO_DEFAULT_LED_PIN, 0);  
+  =}
+}
