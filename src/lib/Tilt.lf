@@ -1,0 +1,42 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+preamble {=
+  #include <math.h>
+  #ifndef M_PI
+  #define M_PI 3.14159265358979323846
+  #endif
+
+  #define RAD2DEG (180.0 / M_PI)
+=}
+
+reactor Tilt {
+
+  input ax: float
+  input ay: float
+  input az: float
+
+  output roll: float
+  output pitch: float
+  
+  reaction(ax, ay, az) -> roll, pitch {=
+
+    double x = ax->value;
+    double y = ay->value;
+    double z = az->value;
+
+    double denominator = sqrt(y*y + z*z);
+    if (denominator < 1e-9) denominator = 1e-9;
+
+    double roll_rad = atan2(y, z);
+    double pitch_rad = atan2(-x, denominator);
+
+    lf_set(roll,  (float)(roll_rad  * RAD2DEG));
+    lf_set(pitch, (float)(pitch_rad * RAD2DEG));
+  =}
+}
