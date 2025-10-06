@@ -1,0 +1,57 @@
+target C {
+    platform: { 
+		name:"rp2040",
+		board: "pololu_3pi_2040_robot"
+	},
+	single-threaded: true,
+}
+
+
+preamble {=
+  #include <stdio.h>
+  #include <pico/stdlib.h>
+  #include <hardware/gpio.h>
+  #include <stdint.h>
+=}
+
+main reactor {
+
+	preamble {=
+
+		#define sio_b        	0xD0000000
+   		#define GPIO_OUT_SET    (sio_b + 0x014)
+    	#define GPIO_OUT_CLR    (sio_b + 0x018)
+    	#define GPIO_OE_SET     (sio_b + 0x024)
+
+        #define LED_PIN         25
+
+    	static inline void led_init() {
+        	*(volatile uint32_t *)GPIO_OE_SET = (1u << LED_PIN);
+    	}
+
+    	static inline void led_on() {
+        	*(volatile uint32_t *)GPIO_OUT_SET = (1u << LED_PIN);
+    	}
+
+    	static inline void led_off() {
+     	   *(volatile uint32_t *)GPIO_OUT_CLR = (1u << LED_PIN);
+    	}
+
+	=}
+
+	timer t1(0, 500 ms)
+	timer t2(250 ms,500 ms)
+
+
+
+	reaction(startup) {=
+		led_init();
+	=}
+
+	reaction (t1) {=
+		led_on();
+	=}
+	reaction (t2) {=
+		led_off();	
+	=}
+}	
