@@ -1,3 +1,41 @@
-target c{ 
-
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true,
 }
+
+import Display from "../lib/Display.lf"
+
+main reactor {
+
+    preamble {=
+        #define BUTTON_GPIO 25
+    =}
+
+    timer poll (0, 250 ms);
+    disp = new Display();
+    logical action clear;
+
+    reaction(startup) {=
+        gpio_init(BUTTON_GPIO);
+        gpio_set_dir(BUTTON_GPIO, GPIO_IN);
+    =}
+
+    reaction(poll) -> disp.line0, clear {=
+        if(!gpio_get(BUTTON_GPIO)) { 
+            lf_set(disp.line0, "Button Pressed");
+            lf_schedule(clear, MSEC(250));
+        } else { 
+            lf.set(disp.line0, "Button not Pressed");
+            lf_schedule(clear, MSEC(250));
+        }
+
+    =}
+    reaction(clear) -> disp.line0 {=
+        lf_set(disp.line0, "");
+    =}
+    
+}
+
