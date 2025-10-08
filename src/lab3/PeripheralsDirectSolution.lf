@@ -18,31 +18,36 @@ main reactor {
 
 	preamble {=
 
-		#define sio_b        	0xD0000000
-   		#define GPIO_OUT_SET    (sio_b + 0x014)
-    	#define GPIO_OUT_CLR    (sio_b + 0x018)
-    	#define GPIO_OE_SET     (sio_b + 0x024)
+		#define IO_BANK0_BASE 0x40014000u
+		#define GPIO_CTRL(n)  (IO_BANK0_BASE + 0x004u + 0x8u * (n))
+		#define FUNCSEL_SIO   5u
+
+  		#define SIO_B       0xD0000000u
+
+   		#define GPIO_OUT_SET    (SIO_B + 0x014)
+    	#define GPIO_OUT_CLR    (SIO_B + 0x018)
+    	#define GPIO_OE_SET     (SIO_B + 0x024)
 
         #define LED_PIN         25
 
     	static inline void led_init() {
+			*(volatile uint32_t *)GPIO_CTRL(LED_PIN) = FUNCSEL_SIO;
         	*(volatile uint32_t *)GPIO_OE_SET = (1u << LED_PIN);
+			*(volatile uint32_t *)GPIO_OUT_SET = (1u << LED_PIN);
     	}
 
     	static inline void led_on() {
-        	*(volatile uint32_t *)GPIO_OUT_SET = (1u << LED_PIN);
+        	*(volatile uint32_t *)GPIO_OUT_CLR = (1u << LED_PIN);
     	}
 
     	static inline void led_off() {
-     	   *(volatile uint32_t *)GPIO_OUT_CLR = (1u << LED_PIN);
+     	    *(volatile uint32_t *)GPIO_OUT_SET = (1u << LED_PIN);
     	}
 
 	=}
 
 	timer t1(0, 500 ms)
 	timer t2(250 ms,500 ms)
-
-
 
 	reaction(startup) {=
 		led_init();

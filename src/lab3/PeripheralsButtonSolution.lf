@@ -21,15 +21,16 @@ main reactor {
     reaction(startup) {=
         gpio_init(BUTTON_GPIO);
         gpio_set_dir(BUTTON_GPIO, GPIO_IN);
+        gpio_pull_up(BUTTON_GPIO);
     =}
 
     reaction(poll) -> disp.line0, clear {=
         if(!gpio_get(BUTTON_GPIO)) { 
             lf_set(disp.line0, "Button Pressed");
-            lf_schedule(clear, MSEC(250));
+            //lf_schedule(clear, MSEC(250));
         } else { 
-            lf.set(disp.line0, "Button not Pressed");
-            lf_schedule(clear, MSEC(250));
+            lf_set(disp.line0, "Button not Pressed");
+            //lf_schedule(clear, MSEC(250));
         }
 
     =}
