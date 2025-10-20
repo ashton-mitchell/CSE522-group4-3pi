@@ -1,0 +1,59 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true,
+  keepalive: true,
+}
+
+main reactor{
+
+    preamble{=
+        #include <stdio.h>
+        #include <pico/stdlib.h>
+        #include <hardware/gpio.h>
+        #include <inttypes.h>
+        static void* action = NULL;
+        static instant_t last_press_time = -1;
+
+        #define BUTTON_GPIO 25
+
+        static void button_irq_callback(uint gpio, uint32_t events) {
+            if (action != NULL && (events & GPIO_IRQ_EDGE_FALL)) {
+                lf_schedule(action, 0);
+            }
+        }
+    =}
+
+    physical action a
+    reaction(startup) -> a {=
+        action = a;
+        stdio_init_all();
+
+        gpio_init(BUTTON_GPIO);
+        gpio_set_dir(BUTTON_GPIO, GPIO_IN);
+        gpio_pull_up(BUTTON_GPIO);
+
+        gpio_set_irq_enabled_with_callback(
+            BUTTON_GPIO,
+            GPIO_IRQ_EDGE_FALL,
+            true,
+            &button_irq_callback
+        );
+    =}
+
+    reaction(a) {=
+        instant_t now = lf_time_logical();
+
+        if (last_press_time >= 0) {
+            long long elapsed_ms = (long long)((now - last_press_time) / 1000000LL);
+            printf("Button event: logical time elapsed = %lld ms\r\n", elapsed_ms);
+        } else {
+            printf("Button event: first detection\r\n");
+        }
+
+        last_press_time = now;
+        fflush(stdout);
+    =}
+}
