@@ -1,0 +1,127 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+import Display from "../lib/Display.lf"
+import Motors from "../lib/Motors.lf"
+import Encoders from "../lib/Encoders.lf"
+import GyroAngle from "../lib/IMU.lf"
+
+preamble {=
+  #include <stdint.h>
+  #include <math.h>
+
+  #define WHEEL_DIAMETER_M   (0.03175f)
+  #define WHEEL_CIRCUM_M     ((float)M_PI * WHEEL_DIAMETER_M)
+  #define METERS_PER_DEG     (WHEEL_CIRCUM_M / 360.0f)
+
+  #define SEGMENT_LENGTH_M   (0.50f)
+  #define TURN_TARGET_DEG    (90.0f)
+
+  #define LINEAR_POWER       (0.10f)
+  #define TURN_POWER         (0.10f)
+=}
+
+reactor AngleToDistance {
+  input angle_deg: int32_t
+  output distance_m: float
+
+  reset state initialized: bool = false
+  reset state prev_angle: int32_t = 0
+  reset state accum_m: float = 0.0
+
+  reaction(angle_deg) -> distance_m {=
+    int32_t curr = (int32_t)angle_deg->value;
+    if (!self->initialized) {
+      self->prev_angle = curr;
+      self->initialized = true;
+      lf_set(distance_m, 0.0f);
+      return;
+    }
+
+    int32_t delta_deg = curr - (int32_t)self->prev_angle;
+    self->prev_angle = curr;
+
+    float delta_m = (float)delta_deg * METERS_PER_DEG;
+    self->accum_m += delta_m;
+
+    lf_set(distance_m, self->accum_m);
+  =}
+}
+
+main reactor {
+  display = new Display()
+  motors = new Motors()
+  enc = new Encoders()
+
+  timer tick(0, 20 ms)
+
+  reaction(startup) -> display.line0, display.line1, display.line2 {=
+    lf_set(display.line0, "Square:");
+    lf_set(display.line1, "L: 0.000 m");
+    lf_set(display.line2, "R: 0.000 m");
+  =}
+
+  initial mode DRIVE {
+    left_conv = new AngleToDistance()
+    right_conv = new AngleToDistance()
+
+    reaction(tick) -> enc.trigger {=
+      lf_set(enc.trigger, true);
+    =}
+
+    enc.left -> left_conv.angle_deg
+    enc.right -> right_conv.angle_deg
+
+    reaction(left_conv.distance_m, right_conv.distance_m) -> display.line0, display.line1, display.line2, motors.left_power, motors.right_power, reset(TURN) {=
+      float dl = left_conv.distance_m->value;
+      float dr = right_conv.distance_m->value;
+
+      lf_set(display.line0, "Square: DRIVE");
+
+      static char buf1[17], buf2[17];
+      snprintf(buf1, sizeof(buf1), "L: %.3f m", dl);
+      snprintf(buf2, sizeof(buf2), "R: %.3f m", dr);
+      lf_set(display.line1, buf1);
+      lf_set(display.line2, buf2);
+
+      if (dl >= SEGMENT_LENGTH_M && dr >= SEGMENT_LENGTH_M) {
+        lf_set(motors.left_power, 0.0f);
+        lf_set(motors.right_power, 0.0f);
+        lf_set_mode(TURN);
+      } else {
+        lf_set(motors.left_power, LINEAR_POWER);
+        lf_set(motors.right_power, LINEAR_POWER);
+      }
+    =}
+  }
+
+  mode TURN {
+    gyro = new GyroAngle()
+
+    reaction(tick) -> gyro.trigger {=
+      lf_set(gyro.trigger, true);
+    =}
+
+    reaction(gyro.z) -> motors.left_power, motors.right_power, display.line0, reset(DRIVE) {=
+      float yaw_deg = gyro.z->value;
+
+      static char status[17];
+      snprintf(status, sizeof(status), "Turn:%3.0fdeg", yaw_deg);
+      lf_set(display.line0, status);
+
+      if (fabsf(yaw_deg) >= TURN_TARGET_DEG) {
+        lf_set(motors.left_power, 0.0f);
+        lf_set(motors.right_power, 0.0f);
+        lf_set_mode(DRIVE);
+      } else {
+        lf_set(motors.left_power, TURN_POWER);
+        lf_set(motors.right_power, -TURN_POWER);
+      }
+    =}
+  }
+}

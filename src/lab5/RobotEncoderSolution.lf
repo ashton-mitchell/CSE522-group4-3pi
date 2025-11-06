@@ -1,0 +1,83 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+import Display from "../lib/Display.lf"
+import Encoders from "../lib/Encoders.lf"
+
+preamble {=
+  #include <stdint.h>
+  #include <math.h>
+
+  // Wheel diameter: 3.175 cm = 0.03175 m
+  #define WHEEL_DIAMETER_M   (0.03175f)
+  #define WHEEL_CIRCUM_M     ((float)M_PI * WHEEL_DIAMETER_M)
+  // Meters per degree:
+  #define METERS_PER_DEG     (WHEEL_CIRCUM_M / 360.0f)
+=}
+
+reactor AngleToDistance {
+  input angle_deg: int32_t
+  output distance_m: float
+
+  state initialized: bool = false
+  state prev_angle: int = 0
+  state accum_m: float = 0.0
+
+  reaction(angle_deg) -> distance_m {=
+    int32_t curr = (int32_t)angle_deg->value;
+    if (!self->initialized) {
+      self->prev_angle = curr;
+      self->initialized = true;
+      lf_set(distance_m, 0.0f);
+      return;
+    }
+
+    int32_t delta_deg = curr - (int32_t)self->prev_angle;
+    self->prev_angle = curr;
+
+    float delta_m = (float)delta_deg * METERS_PER_DEG;
+    self->accum_m += delta_m;
+
+    lf_set(distance_m, self->accum_m);
+  =}
+}
+
+main reactor {
+  display = new Display()
+  encoder = new Encoders()
+
+  left_conv = new AngleToDistance()
+  right_conv = new AngleToDistance()
+
+  timer t(0, 1 s)
+
+  reaction(t) -> encoder.trigger {=
+    lf_set(encoder.trigger, true);
+  =}
+
+  reaction(startup) -> display.line0 {=
+    lf_set(display.line0, "DIST (m):");
+  =}
+
+  encoder.left -> left_conv.angle_deg
+  encoder.right -> right_conv.angle_deg
+
+  reaction(left_conv.distance_m) -> display.line1 {=
+    static char buf[17];
+    float d = left_conv.distance_m->value;
+    snprintf(buf, sizeof(buf), "L: %.3f", d);
+    lf_set(display.line1, buf);
+  =}
+
+  reaction(right_conv.distance_m) -> display.line2 {=
+    static char buf[17];
+    float d = right_conv.distance_m->value;
+    snprintf(buf, sizeof(buf), "R: %.3f", d);
+    lf_set(display.line2, buf);
+  =}
+}
